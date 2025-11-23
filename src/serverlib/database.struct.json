@@ -189,7 +189,7 @@
             ],
             [
                 "password",
-                "varchar(32)",
+                "varchar(400)",
                 "NO",
                 "",
                 null,

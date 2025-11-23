@@ -2595,7 +2595,8 @@ function RequestPrivileges($privileges, $return = false)
 			$res = $db->Query('SELECT * FROM {pre}admins WHERE `adminid`=?', $_SESSION['bm_adminID']);
 			while($row = $res->FetchArray(MYSQLI_ASSOC))
 			{
-				if(md5($row['password'].$_SERVER['HTTP_USER_AGENT']) === $_SESSION['bm_adminAuth'])
+				if(hash('sha512', $row['password'].$_SERVER['HTTP_USER_AGENT']) === $_SESSION['bm_adminAuth'] &&
+				@$_COOKIE['bm_admin_sessionSecret_'.substr(session_id(), 0, 16)] == $_SESSION['adminsessionSecret'])
 				{
 					$ok = true;
 					$row['privileges'] = @unserialize($row['privileges']);

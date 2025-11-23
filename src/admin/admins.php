@@ -62,14 +62,13 @@ if($_REQUEST['action'] == 'account')
 		}
 		else
 		{
-			$newSalt = GenerateRandomSalt(8);
-			$newPW = md5($_POST['newpw1'] . $newSalt);
+			$newPW = password_hash($_POST['newpw1'], PASSWORD_DEFAULT);
 
 			$db->Query('UPDATE {pre}admins SET `password`=?,`password_salt`=? WHERE `adminid`=?',
 				$newPW,
-				$newSalt,
+				'',
 				$adminRow['adminid']);
-			$_SESSION['bm_adminAuth'] = md5($newPW.$_SERVER['HTTP_USER_AGENT']);
+			$_SESSION['bm_adminAuth'] = hash('sha512', $newPW.$_SERVER['HTTP_USER_AGENT']);
 		}
 	}
 
@@ -132,7 +131,7 @@ else if($_REQUEST['action'] == 'admins' && $adminRow['type'] == 0)
 
 				if($admin['adminid'] == $adminRow['adminid'])
 				{
-					$_SESSION['bm_adminAuth'] = md5($pw.$_SERVER['HTTP_USER_AGENT']);
+					$_SESSION['bm_adminAuth'] = hash('sha512', $pw.$_SERVER['HTTP_USER_AGENT']);
 				}
 
 				if(isset($_POST['perms']) && is_array($_POST['perms']))

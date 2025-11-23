@@ -46,8 +46,24 @@ if(isset($_REQUEST['action']) && $_REQUEST['action']=='login')
 					$adminUserRow['last_try'] = 0;
 					$db->Query('UPDATE {pre}admins SET `last_try`=0 WHERE `adminid`=?', $adminUserRow['adminid']);
 				}
-
-				if(md5($pw.$adminUserRow['password_salt']) === $adminUserRow['password'])
+				$md5saltlogin=0;
+				if(md5($pw.$adminUserRow['password_salt']) === $adminUserRow['password']) { // Update old passwords
+					$newPW = password_hash($pw, PASSWORD_DEFAULT);
+					$db->Query('UPDATE {pre}admins SET `password`=?,`password_salt`=? WHERE `adminid`=?', 
+						$newPW, '', $adminUserRow['adminid']); // try update
+					$res = $db->Query('SELECT `adminid`,`username`,`password`,`password_salt`,`last_try` FROM {pre}admins WHERE `username`=?',
+					$username); // check length
+					$lengthrow = $res->FetchArray(MYSQLI_ASSOC);
+					if($newPW != $lengthrow['password']) { // make rollback
+						$db->Query('UPDATE {pre}admins SET `password`=?,`password_salt`=? WHERE `adminid`=?', 
+						$adminUserRow['password'], $adminUserRow['password_salt'], $adminUserRow['adminid']);
+						$md5saltlogin=1;
+					}
+					else {
+						$adminUserRow['password'] = $newPW;
+					}
+				}
+				if(password_verify($pw, $adminUserRow['password']) || $md5saltlogin==1)
 				{
 					$db->Query('UPDATE {pre}admins SET `last_try`=0 AND `adminid`=?', $adminUserRow['adminid']);
 
@@ -56,11 +72,15 @@ if(isset($_REQUEST['action']) && $_REQUEST['action']=='login')
 					$sessionID = session_id();
 					$_SESSION['bm_adminLoggedIn']	= true;
 					$_SESSION['bm_adminID']			= $adminUserRow['adminid'];
-					$_SESSION['bm_adminAuth']		= md5($adminUserRow['password'].$_SERVER['HTTP_USER_AGENT']);
+					$_SESSION['bm_adminAuth']		= hash('sha512', $adminUserRow['password'].$_SERVER['HTTP_USER_AGENT']);
 					$_SESSION['bm_sessionToken']	= SessionToken();
 					$_SESSION['bm_timezone']		= isset($_REQUEST['timezone'])
 														? (int)$_REQUEST['timezone']
 														: date('Z');
+					// Create session cookie lock
+					$_SESSION['adminsessionSecret'] = GenerateRandomKey('sessionSecret');
+					setcookie('bm_admin_sessionSecret_'.substr($sessionID, 0, 16), $_SESSION['adminsessionSecret'], 0, '/');
+					$_COOKIE['bm_admin_sessionSecret_'.substr($sessionID, 0, 16)] = $_SESSION['adminsessionSecret'];
 
 					// log
 					PutLog(sprintf('Admin <%s> logged in from <%s>',
